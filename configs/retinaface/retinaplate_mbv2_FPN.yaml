@@ -1,0 +1,23 @@
+_BASE_: "../Base-RetinaFace.yaml"
+MODEL:
+  BACKBONE:
+    NAME: "build_mnetv2_fpn_backbone"
+  WEIGHTS: ""
+  RETINAFACE:
+    NUM_LANDMARK: 4
+    LANDMARK_REG_WEIGHTS: (10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
+  MNET:
+    WIDTH_MULT: 0.25
+    OUT_FEATURES: ["mob3", "mob4", "mob5"]
+  FPN:
+    IN_FEATURES: ["mob3", "mob4", "mob5"]
+    OUT_CHANNELS: 64
+DATASETS:
+  TRAIN: ("ccpd_rotate_train",)
+  TEST: ("ccpd_rotate_train",)
+SOLVER:
+  IMS_PER_BATCH: 8
+  STEPS: (200000, 230000)
+  MAX_ITER: 250000
+VIS_PERIOD: 100
+OUTPUT_DIR: '/media/ps/A/XPC/data/CCPD/ccpd_rotate_coco/output'

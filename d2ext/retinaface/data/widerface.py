@@ -26,6 +26,7 @@ widerface_metadata = {
 _root = os.getenv("DETECTRON2_DATASETS", "datasets")
 widerface_train_image_root = osp.join(_root, "widerface/train/images")
 widerface_train_annotation_file = osp.join(_root, "widerface/train/widerface_coco.json")
+
 register_coco_instances("widerface_train",
                         widerface_metadata,
                         widerface_train_annotation_file,

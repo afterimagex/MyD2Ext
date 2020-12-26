@@ -9,8 +9,11 @@ MODEL:
     NORM: "BN"
   FPN:
     IN_FEATURES: ["res3", "res4", "res5"]
+DATASETS:
+  TRAIN: ("ccpd_rotate_train",)
+  TEST: ("ccpd_rotate_train",)
 SOLVER:
-  IMS_PER_BATCH: 24
+  IMS_PER_BATCH: 8
   STEPS: (200000, 230000)
   MAX_ITER: 250000
-OUTPUT_DIR: './work_dirs/retinaface_R50_FPN'
+OUTPUT_DIR: '/media/ps/A/XPC/data/CCPD/ccpd_rotate_coco/output'

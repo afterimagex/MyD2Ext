@@ -320,7 +320,7 @@ def build_mnetv1_fpn_backbone(cfg, input_shape: ShapeSpec):
     backbone = FPN(
         bottom_up=bottom_up,
         in_features=in_features,
-        out_channels=out_channels,
+        out_channels=out_features,
         norm=cfg.MODEL.FPN.NORM,
         top_block=LastLevelMaxPool(),
         fuse_type=cfg.MODEL.FPN.FUSE_TYPE,
@@ -347,7 +347,7 @@ def build_mnetv2_fpn_backbone(cfg, input_shape: ShapeSpec):
     backbone = FPN(
         bottom_up=bottom_up,
         in_features=in_features,
-        out_channels=out_channels,
+        out_channels=out_features,
         norm=cfg.MODEL.FPN.NORM,
         top_block=LastLevelMaxPool(),
         fuse_type=cfg.MODEL.FPN.FUSE_TYPE,

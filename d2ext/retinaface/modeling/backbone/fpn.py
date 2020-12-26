@@ -2,12 +2,12 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
 
-from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
-from detectron2.modeling.backbone.resnet import build_resnet_backbone
-from detectron2.modeling.backbone.fpn import FPN
 from detectron2.layers import ShapeSpec
-from .mobilenet import build_mnetv1_backbone, build_mnetv2_backbone
+from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
+from detectron2.modeling.backbone.fpn import FPN
+from detectron2.modeling.backbone.resnet import build_resnet_backbone
 
+from .mobilenet import build_mnetv1_backbone, build_mnetv2_backbone
 
 __all__ = ['build_resnet_fpn_wo_top_block_backbone',
            'build_mnetv1_fpn_wo_top_block_backbone',
@@ -16,7 +16,6 @@ __all__ = ['build_resnet_fpn_wo_top_block_backbone',
 
 @BACKBONE_REGISTRY.register()
 def build_resnet_fpn_wo_top_block_backbone(cfg, input_shape: ShapeSpec):
-
     bottom_up = build_resnet_backbone(cfg, input_shape)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
@@ -33,7 +32,6 @@ def build_resnet_fpn_wo_top_block_backbone(cfg, input_shape: ShapeSpec):
 
 @BACKBONE_REGISTRY.register()
 def build_mnetv1_fpn_wo_top_block_backbone(cfg, input_shape: ShapeSpec):
-
     bottom_up = build_mnetv1_backbone(cfg, input_shape)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS
@@ -50,7 +48,6 @@ def build_mnetv1_fpn_wo_top_block_backbone(cfg, input_shape: ShapeSpec):
 
 @BACKBONE_REGISTRY.register()
 def build_mnetv2_fpn_wo_top_block_backbone(cfg, input_shape: ShapeSpec):
-
     bottom_up = build_mnetv2_backbone(cfg, input_shape)
     in_features = cfg.MODEL.FPN.IN_FEATURES
     out_channels = cfg.MODEL.FPN.OUT_CHANNELS

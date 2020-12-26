@@ -1,27 +1,28 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-from typing import Tuple
-
 import torch
 
-__all__ = ["Landmark2LandmarkTransform"]
+__all__ = ["Mark2MarkTransform"]
 
 
 @torch.jit.script
-class Landmark2LandmarkTransform(object):
+class Mark2MarkTransform(object):
     """
     The transformation is parameterized by 10 deltas: (dx1, dy1, ..., dx5, dy5). 
     The transformation shifts a box's center by the offset (dx * width, dy * height).
     """
 
     def __init__(
-            self, weights: Tuple[float, float, float, float, float, float, float, float, float, float]):
+            self,
+            num_landmark: int,
+            weights):
         """
         Args:
-            weights (10-element tuple): Scaling factors that are applied to the
+            weights (num_landmark-element tuple): Scaling factors that are applied to the
                 (dx1, dy1, ..., dx5, dy5) deltas.
         """
+        self.num_landmark = num_landmark
         self.weights = weights
 
     def get_deltas(self, src_boxes, target_landmarks):
@@ -45,9 +46,9 @@ class Landmark2LandmarkTransform(object):
         src_ctr_y = src_boxes[:, 1] + 0.5 * src_heights
 
         src_xy = torch.stack((src_ctr_x, src_ctr_y), dim=1)
-        src_xy = src_xy.repeat([1, 5])
+        src_xy = src_xy.repeat([1, self.num_landmark])
         src_wh = torch.stack((src_widths, src_heights), dim=1)
-        src_wh = src_wh.repeat([1, 5])
+        src_wh = src_wh.repeat([1, self.num_landmark])
 
         weights = torch.as_tensor(self.weights).to(src_wh.dtype).to(src_wh.device)
         deltas = weights * (target_landmarks - src_xy) / src_wh

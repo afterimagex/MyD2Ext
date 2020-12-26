@@ -18,8 +18,10 @@ You may want to write your own script with your datasets and other customization
 
 import logging
 import os
+import sys
 from collections import OrderedDict
 
+import detectron2.data.transforms as T
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
@@ -35,8 +37,23 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
+sys.path.append('..')
+
 from retinaface.config import add_retinaface_config
-from retinaface.data.dataset_mapper import DatasetMapper
+from detectron2.data.dataset_mapper import DatasetMapper
+
+
+def build_train_aug(cfg):
+    augs = [
+        T.ResizeShortestEdge(cfg.INPUT.MIN_SIZE_TRAIN, cfg.INPUT.MAX_SIZE_TRAIN, cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING),
+        T.RandomContrast(0.5, 1.5),
+        T.RandomBrightness(0.5, 1.5),
+        T.RandomSaturation(0.5, 1.5),
+        T.RandomFlip(),
+    ]
+    if cfg.INPUT.CROP.ENABLED:
+        augs.insert(0, T.RandomCrop(cfg.INPUT.CROP.TYPE, cfg.INPUT.CROP.SIZE))
+    return augs
 
 
 class Trainer(DefaultTrainer):
@@ -54,7 +71,7 @@ class Trainer(DefaultTrainer):
 
     @classmethod
     def build_train_loader(cls, cfg):
-        return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg, True))
+        return build_detection_train_loader(cfg, mapper=DatasetMapper(cfg, True, augmentations=build_train_aug(cfg)))
 
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
