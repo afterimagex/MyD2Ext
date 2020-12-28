@@ -7,7 +7,7 @@
  * @Description    :
  -->
 
-# My detectron2 algorithm extension
+# detectron2 algorithm extension
 
 ## TODO
 
