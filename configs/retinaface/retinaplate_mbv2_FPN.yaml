@@ -16,8 +16,11 @@ DATASETS:
   TRAIN: ("ccpd_rotate_train",)
   TEST: ("ccpd_rotate_train",)
 SOLVER:
-  IMS_PER_BATCH: 8
+  IMS_PER_BATCH: 96
   STEPS: (200000, 230000)
   MAX_ITER: 250000
+  CHECKPOINT_PERIOD: 500
+TEST:
+  KEYPOINT_OKS_SIGMAS: [1.0, 1.0, 1.0, 1.0]
 VIS_PERIOD: 100
-OUTPUT_DIR: '/media/ps/A/XPC/data/CCPD/ccpd_rotate_coco/output'
+OUTPUT_DIR: '/media/ps/A1/XPC/data/CCPD/ccpd_rotate_coco/output'

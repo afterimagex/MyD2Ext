@@ -221,13 +221,20 @@ class RetinaFace(nn.Module):
         img = batched_inputs[image_index]["image"]
         img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format)
         v_gt = Visualizer(img, None)
-        v_gt = v_gt.overlay_instances(boxes=batched_inputs[image_index]["instances"].gt_boxes)
+        v_gt = v_gt.overlay_instances(
+            boxes=batched_inputs[image_index]["instances"].gt_boxes,
+            keypoints=batched_inputs[image_index]["instances"].gt_keypoints,
+        )
         anno_img = v_gt.get_image()
         processed_results = detector_postprocess(results[image_index], img.shape[0], img.shape[1])
         predicted_boxes = processed_results.pred_boxes.tensor.detach().cpu().numpy()
+        predicted_keypoints = processed_results.pred_keypoints.detach().cpu().numpy()
 
         v_pred = Visualizer(img, None)
-        v_pred = v_pred.overlay_instances(boxes=predicted_boxes[0:max_boxes])
+        v_pred = v_pred.overlay_instances(
+            boxes=predicted_boxes[0:max_boxes],
+            keypoints=predicted_keypoints[0:max_boxes],
+        )
         prop_img = v_pred.get_image()
         vis_img = np.vstack((anno_img, prop_img))
         vis_img = vis_img.transpose(2, 0, 1)

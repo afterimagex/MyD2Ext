@@ -20,6 +20,6 @@ register_coco_instances(
         "keypoint_names": ["lt", "rt", "rb", "lb"],
         "keypoint_flip_map": [["lt", "rt"], ["lb", "rb"]],
     },
-    json_file="/media/ps/A/XPC/data/CCPD/ccpd_rotate_coco/trainval.json",
-    image_root="/media/ps/A/XPC/data/CCPD/ccpd_rotate",
+    json_file="/media/ps/A1/XPC/data/CCPD/ccpd_rotate_coco/trainval.json",
+    image_root="/media/ps/A1/XPC/data/CCPD/ccpd_rotate",
 )

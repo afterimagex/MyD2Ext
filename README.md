@@ -14,3 +14,5 @@
 - [x] RetinaFace
 - [ ] CenterNet
 - [ ] DBNet
+- [ ] LFFD
+- [ ] YoloV3

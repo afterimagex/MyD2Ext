@@ -1,0 +1,1 @@
+python main.py -i /media/ps/A/XPC/data/CCPD/ccpd_rotate  -o /media/ps/A/XPC/data/CCPD/ccpd_rotate_coco
