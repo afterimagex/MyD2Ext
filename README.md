@@ -16,3 +16,12 @@
 - [ ] DBNet
 - [ ] LFFD
 - [ ] YoloV3
+- [ ] SparseR-CNN
+- [ ] Yolact
+
+# Acknowledgement
+
+[Detectron2](https://github.com/facebookresearch/detectron2)
+[CenterX](https://github.com/JDAI-CV/centerX)
+[RetinaFace](https://github.com/tkianai/RetinaFace.detectron2)
+[PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)

@@ -265,11 +265,11 @@ class RetinaFace(nn.Module):
         features = [features[f] for f in self.head_in_features]
 
         anchors = self.anchor_generator(features)
-        pred_logits, pred_anchor_deltas, pred_mark_deltas = self.head(features)
+        pred_logits, pred_anchor_deltas, pred_landmark_deltas = self.head(features)
         # Transpose the Hi*Wi*A dimension to the middle:
         pred_logits = [permute_to_N_HWA_K(x, self.num_classes) for x in pred_logits]
         pred_anchor_deltas = [permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas]
-        pred_mark_deltas = [permute_to_N_HWA_K(x, self.num_landmark * 2) for x in pred_mark_deltas]
+        pred_landmark_deltas = [permute_to_N_HWA_K(x, self.num_landmark * 2) for x in pred_landmark_deltas]
 
         if self.training:
             assert not torch.jit.is_scripting(), "Not supported"
@@ -277,20 +277,20 @@ class RetinaFace(nn.Module):
             gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
 
             gt_labels, gt_boxes, gt_marks, gt_marks_labels = self.label_anchors(anchors, gt_instances)
-            losses = self.losses(anchors, pred_logits, gt_labels, pred_anchor_deltas, gt_boxes, pred_mark_deltas,
+            losses = self.losses(anchors, pred_logits, gt_labels, pred_anchor_deltas, gt_boxes, pred_landmark_deltas,
                                  gt_marks, gt_marks_labels)
 
             if self.vis_period > 0:
                 storage = get_event_storage()
                 if storage.iter % self.vis_period == 0:
                     results = self.inference(
-                        anchors, pred_logits, pred_anchor_deltas, pred_mark_deltas, images.image_sizes
+                        anchors, pred_logits, pred_anchor_deltas, pred_landmark_deltas, images.image_sizes
                     )
                     self.visualize_training(batched_inputs, results)
 
             return losses
         else:
-            results = self.inference(anchors, pred_logits, pred_anchor_deltas, pred_mark_deltas, images.image_sizes)
+            results = self.inference(anchors, pred_logits, pred_anchor_deltas, pred_landmark_deltas, images.image_sizes)
             if torch.jit.is_scripting():
                 return results
             processed_results = []
@@ -367,8 +367,8 @@ class RetinaFace(nn.Module):
             raise ValueError(f"Invalid bbox reg loss type '{self.box_reg_loss_type}'")
 
         loss_box_reg = loss_box_reg * self.loc_weight
-        # landmark regression loss
-        # NOTE filter in-valid landmarks
+        # keypoints regression loss
+        # NOTE filter in-valid keypoints
         gt_marks_labels = torch.stack(gt_marks_labels)
         marks_pos_mask = pos_mask & (gt_marks_labels > 0)
 
@@ -378,12 +378,12 @@ class RetinaFace(nn.Module):
             gt_landmark_deltas[marks_pos_mask],
             beta=self.smooth_l1_beta,
             reduction="sum",
-        ) / max(1, self.loss_normalizer)
+        )
 
         return {
             "loss_cls": loss_cls / self.loss_normalizer,
             "loss_box_reg": loss_box_reg / self.loss_normalizer,
-            "loss_marks_reg": loss_marks_reg / self.loss_normalizer,
+            "loss_keypoint_reg": loss_marks_reg / self.loss_normalizer,
         }
 
     @torch.no_grad()
@@ -420,8 +420,8 @@ class RetinaFace(nn.Module):
 
             if len(gt_per_image) > 0:
                 matched_gt_boxes_i = gt_per_image.gt_boxes.tensor[matched_idxs]
-                matched_gt_marks_iv = gt_per_image.gt_keypoints.tensor[matched_idxs]
 
+                matched_gt_marks_iv = gt_per_image.gt_keypoints.tensor[matched_idxs]
                 matched_gt_marks_i = matched_gt_marks_iv[:, :, :2].flatten(1)
                 matched_gt_marks_labels_i = matched_gt_marks_iv[:, :, 2].flatten(1)
                 matched_gt_marks_labels_i, _ = torch.min(matched_gt_marks_labels_i, dim=1)
@@ -603,6 +603,10 @@ class RetinaFaceHead(nn.Module):
         cls_subnet = []
         bbox_subnet = []
         marks_subnet = []
+        print('***')
+        print(input_shape[0])
+        print(conv_dims)
+        print(list(zip([input_shape[0].channels] + conv_dims, conv_dims)))
         for in_channels, out_channels in zip([input_shape[0].channels] + conv_dims, conv_dims):
             if use_ssh:
                 cls_subnet.append(SSH(in_channels, out_channels))
@@ -742,3 +746,22 @@ class SSH(nn.Module):
         out = torch.cat([conv3X3, conv5X5, conv7X7], dim=1)
         out = self.relu(out)
         return out
+
+
+@META_ARCH_REGISTRY.register()
+class RetinaFaceDeploy(RetinaFace):
+
+    def forward(self, images: Tensor):
+        images = (images.to(self.device) - self.pixel_mean) / self.pixel_std
+        features = self.backbone(images)
+        features = [features[f] for f in self.head_in_features]
+        self.anchors = self.anchor_generator(features)
+        pred_logits, pred_anchor_deltas, pred_keypoint_deltas = self.head(features)
+        # Transpose the Hi*Wi*A dimension to the middle:
+        pred_logits = cat([permute_to_N_HWA_K(x, self.num_classes) for x in pred_logits], dim=1)
+        pred_anchor_deltas = cat([permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas], dim=1)
+        pred_keypoint_deltas = cat([permute_to_N_HWA_K(x, self.num_landmark * 2) for x in pred_keypoint_deltas], dim=1)
+        return pred_logits, pred_anchor_deltas, pred_keypoint_deltas
+
+    def write_anchor(self):
+        pass
