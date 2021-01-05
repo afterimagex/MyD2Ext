@@ -33,3 +33,4 @@ def add_retinaface_config(cfg):
     cfg.MODEL.RETINANET.SCORE_THRESH_TEST = 0.2  # 0.02
     cfg.MODEL.RETINANET.BBOX_REG_WEIGHTS = (10.0, 10.0, 5.0, 5.0)
     cfg.MODEL.RETINANET.SMOOTH_L1_LOSS_BETA = 1.0  # 0.1
+    cfg.MODEL.RETINANET.NUM_CONVS = 1

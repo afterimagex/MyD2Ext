@@ -25,12 +25,14 @@ from ..landmark_regression import Mark2MarkTransform
 __all__ = ["RetinaFace"]
 
 
-def permute_to_N_HWA_K(tensor, K: int):
+def permute_to_N_HWA_K(tensor, K: int, constant=False):
     """
     Transpose/reshape a tensor from (N, (Ai x K), H, W) to (N, (HxWxAi), K)
     """
     assert tensor.dim() == 4, tensor.shape
     N, _, H, W = tensor.shape
+    if constant:
+        N, H, W = int(N), int(H), int(W)
     tensor = tensor.view(N, -1, K, H, W)
     tensor = tensor.permute(0, 3, 4, 1, 2)
     tensor = tensor.reshape(N, -1, K)  # Size=(N,HWA,K)
@@ -603,10 +605,7 @@ class RetinaFaceHead(nn.Module):
         cls_subnet = []
         bbox_subnet = []
         marks_subnet = []
-        print('***')
-        print(input_shape[0])
-        print(conv_dims)
-        print(list(zip([input_shape[0].channels] + conv_dims, conv_dims)))
+
         for in_channels, out_channels in zip([input_shape[0].channels] + conv_dims, conv_dims):
             if use_ssh:
                 cls_subnet.append(SSH(in_channels, out_channels))
@@ -667,7 +666,7 @@ class RetinaFaceHead(nn.Module):
                 len(set(num_anchors)) == 1
         ), "Using different number of anchors between levels is not currently supported!"
         num_anchors = num_anchors[0]
-
+        print('cfg.MODEL.RETINANET.NUM_CONVS', cfg.MODEL.RETINANET.NUM_CONVS)
         return {
             "input_shape": input_shape,
             "num_classes": cfg.MODEL.RETINANET.NUM_CLASSES,
@@ -697,12 +696,12 @@ class RetinaFaceHead(nn.Module):
         """
         logits = []
         bbox_reg = []
-        marks_reg = []
+        keypoint_reg = []
         for feature in features:
             logits.append(self.cls_score(self.cls_subnet(feature)))
             bbox_reg.append(self.bbox_pred(self.bbox_subnet(feature)))
-            marks_reg.append(self.marks_pred(self.marks_subnet(feature)))
-        return logits, bbox_reg, marks_reg
+            keypoint_reg.append(self.marks_pred(self.marks_subnet(feature)))
+        return logits, bbox_reg, keypoint_reg
 
 
 class SSH(nn.Module):
@@ -752,15 +751,16 @@ class SSH(nn.Module):
 class RetinaFaceDeploy(RetinaFace):
 
     def forward(self, images: Tensor):
-        images = (images.to(self.device) - self.pixel_mean) / self.pixel_std
+        # images = (images - self.pixel_mean) / self.pixel_std
         features = self.backbone(images)
         features = [features[f] for f in self.head_in_features]
         self.anchors = self.anchor_generator(features)
         pred_logits, pred_anchor_deltas, pred_keypoint_deltas = self.head(features)
         # Transpose the Hi*Wi*A dimension to the middle:
-        pred_logits = cat([permute_to_N_HWA_K(x, self.num_classes) for x in pred_logits], dim=1)
-        pred_anchor_deltas = cat([permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas], dim=1)
-        pred_keypoint_deltas = cat([permute_to_N_HWA_K(x, self.num_landmark * 2) for x in pred_keypoint_deltas], dim=1)
+        pred_logits = cat([permute_to_N_HWA_K(x, self.num_classes, constant=False) for x in pred_logits], dim=1)
+        pred_anchor_deltas = cat([permute_to_N_HWA_K(x, 4, constant=False) for x in pred_anchor_deltas], dim=1)
+        pred_keypoint_deltas = cat(
+            [permute_to_N_HWA_K(x, self.num_landmark * 2, constant=False) for x in pred_keypoint_deltas], dim=1)
         return pred_logits, pred_anchor_deltas, pred_keypoint_deltas
 
     def write_anchor(self):

@@ -3,6 +3,8 @@ MODEL:
   BACKBONE:
     NAME: "build_mnetv2_fpn_backbone"
   WEIGHTS: ""
+  RETINANET:
+    NUM_CONVS: 1
   RETINAFACE:
     NUM_LANDMARK: 4
     LANDMARK_REG_WEIGHTS: (10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
