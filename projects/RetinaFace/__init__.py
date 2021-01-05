@@ -10,6 +10,4 @@
 #
 # ------------------------------------------------------------
 
-from .modeling.backbone import *
-from .modeling.meta_arch import RetinaFace
 from .data.ccpd import *

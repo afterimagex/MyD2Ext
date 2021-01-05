@@ -11,7 +11,7 @@ from detectron2.config import get_cfg
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup
 
 sys.path.append('..')
-from retinaface.config import add_retinaface_config
+from MyD2Ext.projects.retinaface.config import add_retinaface_config
 from onnxsim import simplify
 
 

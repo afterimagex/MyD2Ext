@@ -12,10 +12,8 @@ from torch import nn
 from fvcore.nn import sigmoid_focal_loss_jit
 
 from .util import box_ops
-from .util.misc import (NestedTensor, nested_tensor_from_tensor_list,
-                       accuracy, get_world_size, interpolate,
-                       is_dist_avail_and_initialized)
-from .util.box_ops import box_cxcywh_to_xyxy, generalized_box_iou
+from .util.misc import (accuracy, get_world_size, is_dist_avail_and_initialized)
+from .util.box_ops import generalized_box_iou
 
 from scipy.optimize import linear_sum_assignment
 

@@ -17,12 +17,12 @@ You may want to write your own script with your datasets and other customization
 """
 
 import logging
-import os
 import sys
 from collections import OrderedDict
 
 import detectron2.data.transforms as T
 import detectron2.utils.comm as comm
+import os
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog, build_detection_train_loader, build_detection_test_loader
@@ -37,10 +37,11 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
 
+sys.path.append('../..')
 sys.path.append('..')
 
-from retinaface.config import add_retinaface_config
 from detectron2.data.dataset_mapper import DatasetMapper
+from d2ext.config.defaults import add_retinaface_config
 
 
 def build_train_aug(cfg):

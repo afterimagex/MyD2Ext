@@ -20,7 +20,7 @@ from fvcore.nn import giou_loss, sigmoid_focal_loss_jit, smooth_l1_loss
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from ..landmark_regression import Mark2MarkTransform
+from d2ext.modeling.landmark_regression import Mark2MarkTransform
 
 __all__ = ["RetinaFace"]
 
