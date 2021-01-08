@@ -1,0 +1,28 @@
+MODEL:
+  META_ARCHITECTURE: "CenterNet"
+  BACKBONE:
+    FREEZE_AT: 0 # No pretrained models provided / Do not freeze shadow layers
+  RESNETS:
+    OUT_FEATURES: ["res5"]
+  CENTERNET:
+    IN_FEATURES: "res5"
+DATASETS:
+  TRAIN: ("widerface_train",)
+  TEST: ("widerface_train",)
+DATALOADER:
+  NUM_WORKERS: 8
+SOLVER:
+  BASE_LR: 0.001  # Note that RetinaNet uses a different default learning rate
+INPUT:
+  FORMAT: "RGB"
+  MAX_SIZE_TRAIN: 512
+  MIN_SIZE_TRAIN: (320, 384, 448, 512)
+  MIN_SIZE_TEST: 0
+  MAX_SIZE_TEST: 512
+  CROP:
+    ENABLED: True
+    TYPE: "relative_range"
+    SIZE: [0.6, 0.6]
+TEST:
+  DETECTIONS_PER_IMAGE: 100
+VERSION: 2

@@ -16,7 +16,8 @@ class Mark2MarkTransform(object):
     def __init__(
             self,
             num_landmark: int,
-            weights):
+            weights
+    ):
         """
         Args:
             weights (num_landmark-element tuple): Scaling factors that are applied to the

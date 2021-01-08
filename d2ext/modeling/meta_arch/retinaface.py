@@ -5,6 +5,11 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+from fvcore.nn import giou_loss, sigmoid_focal_loss_jit, smooth_l1_loss
+from torch import Tensor, nn
+from torch.nn import functional as F
+
+from d2ext.modeling.landmark_regression import Mark2MarkTransform
 from detectron2.config import configurable
 from detectron2.data.detection_utils import convert_image_to_rgb
 from detectron2.layers import ShapeSpec, batched_nms, cat, get_norm, nonzero_tuple
@@ -16,11 +21,6 @@ from detectron2.modeling.meta_arch.build import META_ARCH_REGISTRY
 from detectron2.modeling.postprocessing import detector_postprocess
 from detectron2.structures import Boxes, ImageList, Instances, pairwise_iou
 from detectron2.utils.events import get_event_storage
-from fvcore.nn import giou_loss, sigmoid_focal_loss_jit, smooth_l1_loss
-from torch import Tensor, nn
-from torch.nn import functional as F
-
-from d2ext.modeling.landmark_regression import Mark2MarkTransform
 
 __all__ = ["RetinaFace"]
 
@@ -385,7 +385,7 @@ class RetinaFace(nn.Module):
         return {
             "loss_cls": loss_cls / self.loss_normalizer,
             "loss_box_reg": loss_box_reg / self.loss_normalizer,
-            "loss_keypoint_reg": loss_marks_reg / self.loss_normalizer,
+            "loss_landmark_reg": loss_marks_reg / self.loss_normalizer,
         }
 
     @torch.no_grad()
@@ -411,10 +411,8 @@ class RetinaFace(nn.Module):
         anchors = Boxes.cat(anchors)  # Rx4
         num_anchors = anchors.tensor.shape[0]
 
-        gt_labels = []
-        matched_gt_boxes = []
-        matched_gt_marks = []
-        matched_gt_marks_labels = []
+        gt_labels, matched_gt_boxes, matched_gt_marks, matched_gt_marks_labels = [[] for _ in range(4)]
+
         for gt_per_image in gt_instances:
             match_quality_matrix = pairwise_iou(gt_per_image.gt_boxes, anchors)
             matched_idxs, anchor_labels = self.anchor_matcher(match_quality_matrix)
@@ -451,7 +449,7 @@ class RetinaFace(nn.Module):
             anchors: List[Boxes],
             pred_logits: List[Tensor],
             pred_anchor_deltas: List[Tensor],
-            pred_marks_deltas: List[Tensor],
+            pred_keypoint_deltas: List[Tensor],
             image_sizes: List[Tuple[int, int]],
     ):
         """
@@ -469,9 +467,9 @@ class RetinaFace(nn.Module):
         for img_idx, image_size in enumerate(image_sizes):
             pred_logits_per_image = [x[img_idx] for x in pred_logits]
             bbox_deltas_per_image = [x[img_idx] for x in pred_anchor_deltas]
-            marks_deltas_per_image = [x[img_idx] for x in pred_marks_deltas]
+            keypoint_deltas_per_image = [x[img_idx] for x in pred_keypoint_deltas]
             results_per_image = self.inference_single_image(
-                anchors, pred_logits_per_image, bbox_deltas_per_image, marks_deltas_per_image, image_size
+                anchors, pred_logits_per_image, bbox_deltas_per_image, keypoint_deltas_per_image, image_size
             )
             results.append(results_per_image)
         return results
@@ -481,7 +479,7 @@ class RetinaFace(nn.Module):
             anchors: List[Boxes],
             box_cls: List[Tensor],
             box_delta: List[Tensor],
-            marks_delta: List[Tensor],
+            oks_delta: List[Tensor],
             image_size: Tuple[int, int],
     ):
         """
@@ -499,13 +497,10 @@ class RetinaFace(nn.Module):
         Returns:
             Same as `inference`, but for only one image.
         """
-        boxes_all = []
-        marks_all = []
-        scores_all = []
-        class_idxs_all = []
+        boxes_all, keypoint_all, scores_all, class_idxs_all = [[] for _ in range(4)]
 
         # Iterate over every feature level
-        for box_cls_i, box_reg_i, marks_reg_i, anchors_i in zip(box_cls, box_delta, marks_delta, anchors):
+        for box_cls_i, box_reg_i, oks_reg_i, anchors_i in zip(box_cls, box_delta, oks_delta, anchors):
             # HxWxAxK,
             predicted_prob = box_cls_i.flatten().sigmoid_()
 
@@ -526,29 +521,29 @@ class RetinaFace(nn.Module):
             classes_idxs = topk_idxs % self.num_classes
 
             box_reg_i = box_reg_i[anchor_idxs]
-            marks_reg_i = marks_reg_i[anchor_idxs]
+            oks_reg_i = oks_reg_i[anchor_idxs]
             anchors_i = anchors_i[anchor_idxs]
             # predict boxes
             predicted_boxes = self.box2box_transform.apply_deltas(box_reg_i, anchors_i.tensor)
-            predicted_marks = self.mark2mark_transform.apply_deltas(marks_reg_i, anchors_i.tensor)
+            predicted_marks = self.mark2mark_transform.apply_deltas(oks_reg_i, anchors_i.tensor)
 
             boxes_all.append(predicted_boxes)
-            marks_all.append(predicted_marks)
+            keypoint_all.append(predicted_marks)
             scores_all.append(predicted_prob)
             class_idxs_all.append(classes_idxs)
 
-        boxes_all, marks_all, scores_all, class_idxs_all = [
-            cat(x) for x in [boxes_all, marks_all, scores_all, class_idxs_all]
+        boxes_all, keypoint_all, scores_all, class_idxs_all = [
+            cat(x) for x in [boxes_all, keypoint_all, scores_all, class_idxs_all]
         ]
         keep = batched_nms(boxes_all, scores_all, class_idxs_all, self.test_nms_thresh)
         keep = keep[: self.max_detections_per_image]
 
         result = Instances(image_size)
         result.pred_boxes = Boxes(boxes_all[keep])
-        keypoints_all = marks_all[keep].reshape(-1, self.num_landmark, 2)
+        keypoints_all = keypoint_all[keep].reshape(-1, self.num_landmark, 2)
         keypoints_all = torch.cat(
             (keypoints_all, 2 * torch.ones(keypoints_all.shape[0], self.num_landmark, 1).to(self.device)), dim=2)
-        result.pred_keypoints = keypoints_all  # Keypoints(keypoints_all)
+        result.pred_keypoints = keypoints_all
 
         result.scores = scores_all[keep]
         result.pred_classes = class_idxs_all[keep]
