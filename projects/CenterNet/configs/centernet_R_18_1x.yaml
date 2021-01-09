@@ -4,12 +4,13 @@ MODEL:
     NAME: "build_resnet_backbone"
   WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
   RESNETS:
-    DEPTH: 50
+    DEPTH: 18
+    RES2_OUT_CHANNELS: 64
   CENTERNET:
     NUM_CLASSES: 1
 INPUT:
   MAX_SIZE_TRAIN: 512
-  MIN_SIZE_TRAIN: (320, 480, 512)
+  MIN_SIZE_TRAIN: (320, 480, 512,)
   CROP:
     ENABLED: False
     SIZE: [0.8, 0.8]

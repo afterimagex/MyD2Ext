@@ -22,6 +22,7 @@ def gather_feature(fmap, index, mask=None, use_transform=False):
 
     dim = fmap.size(-1)
     index = index.unsqueeze(len(index.shape)).expand(*index.shape, dim)
+
     fmap = fmap.gather(dim=1, index=index)
     if mask is not None:
         mask = mask.unsqueeze(2).expand_as(fmap)
@@ -50,6 +51,7 @@ def topk_score(scores, K=40):
     """
     batch, channel, height, width = scores.shape
 
+    # score = torch.where(scores < 0.05, torch.full_like(scores, 0), scores)
     # get topk score and its index in every H x W(channel dim) feature map
     topk_scores, topk_inds = torch.topk(scores.reshape(batch, channel, -1), K)
 

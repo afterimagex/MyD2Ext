@@ -9,12 +9,10 @@ def reg_l1_loss(output, mask, index, target, norm_wh=False):
     try:
         mask = mask.unsqueeze(dim=2).expand_as(pred).float()
     except:
-        print(1111)
         mask = mask.float()
     # loss = F.l1_loss(pred * mask, target * mask, reduction='elementwise_mean')
     # print(pred, target, mask)
     norm_ = torch.sum(target, dim=1, keepdim=True) / 2. + 1e-4 if norm_wh else 1.0
-
     loss = F.l1_loss(pred * mask / norm_, target * mask / norm_, reduction="sum")
     loss = loss / (mask.sum() + 1e-4)
     return loss

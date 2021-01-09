@@ -11,6 +11,7 @@ from d2ext.layers.centernet_loss import reg_l1_loss, modified_focal_loss, ignore
 from d2ext.layers.utils import pseudo_nms, topk_score, gather_feature
 from d2ext.modeling.centernet_gt import CenterNetGT
 from detectron2.config import configurable
+from detectron2.data import MetadataCatalog
 from detectron2.data.detection_utils import convert_image_to_rgb
 from detectron2.layers import ShapeSpec
 from detectron2.modeling.backbone.build import build_backbone
@@ -51,6 +52,7 @@ class CenterNet(nn.Module):
             kd_enable=False,
             kd_loss,
             kd_without_label,
+            metadata,
             vis_period=0,
             input_format="BGR",
     ):
@@ -75,6 +77,7 @@ class CenterNet(nn.Module):
         # Vis parameters
         self.vis_period = vis_period
         self.input_format = input_format
+        self.metadata = metadata
 
         if kd_enable:
             self.kd_loss = kd_loss
@@ -92,6 +95,9 @@ class CenterNet(nn.Module):
     def from_config(cls, cfg):
         backbone = build_backbone(cfg)
         feature_shapes = backbone.output_shape()[cfg.MODEL.CENTERNET.IN_FEATURES]
+        metadata = MetadataCatalog.get(
+            cfg.DATASETS.TRAIN[0] if len(cfg.DATASETS.TRAIN) else "__unused"
+        )
         return {
             "backbone": backbone,
             "upsample": CenternetDeconv(cfg, feature_shapes),
@@ -105,6 +111,7 @@ class CenterNet(nn.Module):
                 cfg.MODEL.CENTERNET.MIN_OVERLAP,
                 cfg.MODEL.CENTERNET.TENSOR_DIM,
             ),
+            "metadata": metadata,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
             "max_detections_per_image": cfg.TEST.DETECTIONS_PER_IMAGE,
@@ -146,17 +153,19 @@ class CenterNet(nn.Module):
         image_index = 0  # only visualize a single image
         img = batched_inputs[image_index]["image"]
         img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format)
-        v_gt = Visualizer(img, None)
+        v_gt = Visualizer(img, self.metadata)
         v_gt = v_gt.overlay_instances(
             boxes=batched_inputs[image_index]["instances"].gt_boxes,
+            labels=batched_inputs[image_index]["instances"].gt_classes.cpu().numpy(),
         )
+
         anno_img = v_gt.get_image()
         processed_results = detector_postprocess(results[image_index], img.shape[0], img.shape[1])
-        predicted_boxes = processed_results.pred_boxes.tensor.detach().cpu().numpy()
-
-        v_pred = Visualizer(img, None)
-        v_pred = v_pred.overlay_instances(
-            boxes=predicted_boxes[0:max_boxes],
+        processed_instance = processed_results.to(torch.device("cpu"))
+        processed_instance.pred_classes = processed_instance.pred_classes.to(torch.int32)
+        v_pred = Visualizer(img, self.metadata)
+        v_pred = v_pred.draw_instance_predictions(
+            predictions=processed_instance
         )
         prop_img = v_pred.get_image()
         vis_img = np.vstack((anno_img, prop_img))
@@ -191,6 +200,7 @@ class CenterNet(nn.Module):
             assert "instances" in batched_inputs[0], "Instance annotations are missing in training!"
             gt_instances = [x["instances"].to(self.device) for x in batched_inputs]
             gt_dict = self.gt_generator(gt_instances, images.tensor.shape)
+
             losses = self.losses(pred_dict, gt_dict)
 
             if self.vis_period > 0:
@@ -279,6 +289,7 @@ class CenterNet(nn.Module):
         mask = gt_dict["gt_mask"]
         index = gt_dict["gt_index"].to(torch.long)
         # width and height loss, better version
+
         loss_wh = reg_l1_loss(pred_dict["pred_wh"], mask, index, gt_dict["gt_wh"], self.hm_norm)
         # regression loss
         loss_reg = reg_l1_loss(pred_dict["pred_reg"], mask, index, gt_dict["gt_reg"])
