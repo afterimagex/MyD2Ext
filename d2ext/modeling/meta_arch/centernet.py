@@ -10,6 +10,7 @@ from d2ext.layers.centernet_deconv import DeconvLayer
 from d2ext.layers.centernet_loss import reg_l1_loss, modified_focal_loss, ignore_unlabel_focal_loss, mse_loss
 from d2ext.layers.utils import pseudo_nms, topk_score, gather_feature
 from d2ext.modeling.centernet_gt import CenterNetGT
+from d2ext.utils.visualizer import TrainingVisualizer
 from detectron2.config import configurable
 from detectron2.data import MetadataCatalog
 from detectron2.data.detection_utils import convert_image_to_rgb
@@ -52,9 +53,9 @@ class CenterNet(nn.Module):
             kd_enable=False,
             kd_loss,
             kd_without_label,
-            metadata,
             vis_period=0,
             input_format="BGR",
+            visualizer,
     ):
         super().__init__()
 
@@ -77,7 +78,7 @@ class CenterNet(nn.Module):
         # Vis parameters
         self.vis_period = vis_period
         self.input_format = input_format
-        self.metadata = metadata
+        self.visualizer = visualizer
 
         if kd_enable:
             self.kd_loss = kd_loss
@@ -111,7 +112,6 @@ class CenterNet(nn.Module):
                 cfg.MODEL.CENTERNET.MIN_OVERLAP,
                 cfg.MODEL.CENTERNET.TENSOR_DIM,
             ),
-            "metadata": metadata,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
             "max_detections_per_image": cfg.TEST.DETECTIONS_PER_IMAGE,
@@ -126,6 +126,7 @@ class CenterNet(nn.Module):
             "kd_without_label": cfg.MODEL.CENTERNET.KD.KD_WITHOUT_LABEL,
             "vis_period": cfg.VIS_PERIOD,
             "input_format": cfg.INPUT.FORMAT,
+            "visualizer": TrainingVisualizer(detector_postprocess, metadata)
         }
 
     @property
@@ -142,7 +143,6 @@ class CenterNet(nn.Module):
             batched_inputs (list): a list that contains input to the model.
             results (List[Instances]): a list of #images elements.
         """
-        from detectron2.utils.visualizer import Visualizer
 
         assert len(batched_inputs) == len(
             results
@@ -153,21 +153,10 @@ class CenterNet(nn.Module):
         image_index = 0  # only visualize a single image
         img = batched_inputs[image_index]["image"]
         img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format)
-        v_gt = Visualizer(img, self.metadata)
-        v_gt = v_gt.overlay_instances(
-            boxes=batched_inputs[image_index]["instances"].gt_boxes,
-            labels=batched_inputs[image_index]["instances"].gt_classes.cpu().numpy(),
-        )
 
-        anno_img = v_gt.get_image()
-        processed_results = detector_postprocess(results[image_index], img.shape[0], img.shape[1])
-        processed_instance = processed_results.to(torch.device("cpu"))
-        processed_instance.pred_classes = processed_instance.pred_classes.to(torch.int32)
-        v_pred = Visualizer(img, self.metadata)
-        v_pred = v_pred.draw_instance_predictions(
-            predictions=processed_instance
-        )
-        prop_img = v_pred.get_image()
+        anno_img = self.visualizer.draw_instance_groundtruth(img, batched_inputs[image_index]["instances"])
+        prop_img = self.visualizer.draw_instance_predictions(img, results[image_index], max_boxes)
+
         vis_img = np.vstack((anno_img, prop_img))
         vis_img = vis_img.transpose(2, 0, 1)
         vis_name = f"Top: GT bounding boxes; Bottom: {max_boxes} Highest Scoring Results"

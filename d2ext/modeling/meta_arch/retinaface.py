@@ -10,7 +10,9 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from d2ext.modeling.landmark_regression import Mark2MarkTransform
+from d2ext.utils.visualizer import TrainingVisualizer
 from detectron2.config import configurable
+from detectron2.data import MetadataCatalog
 from detectron2.data.detection_utils import convert_image_to_rgb
 from detectron2.layers import ShapeSpec, batched_nms, cat, get_norm, nonzero_tuple
 from detectron2.modeling.anchor_generator import build_anchor_generator
@@ -71,6 +73,7 @@ class RetinaFace(nn.Module):
             pixel_std,
             vis_period=0,
             input_format="BGR",
+            visualizer,
     ):
         """
         NOTE: this interface is experimental.
@@ -145,6 +148,7 @@ class RetinaFace(nn.Module):
         # Vis parameters
         self.vis_period = vis_period
         self.input_format = input_format
+        self.visualizer = visualizer
 
         self.register_buffer("pixel_mean", torch.Tensor(pixel_mean).view(-1, 1, 1))
         self.register_buffer("pixel_std", torch.Tensor(pixel_std).view(-1, 1, 1))
@@ -164,6 +168,9 @@ class RetinaFace(nn.Module):
         backbone_shape = backbone.output_shape()
         feature_shapes = [backbone_shape[f] for f in cfg.MODEL.RETINANET.IN_FEATURES]
         anchor_generator = build_anchor_generator(cfg, feature_shapes)
+        metadata = MetadataCatalog.get(
+            cfg.DATASETS.TRAIN[0] if len(cfg.DATASETS.TRAIN) else "__unused"
+        )
         return {
             "backbone": backbone,
             "head": RetinaFaceHead(cfg, feature_shapes),
@@ -195,6 +202,7 @@ class RetinaFace(nn.Module):
             # Vis parameters
             "vis_period": cfg.VIS_PERIOD,
             "input_format": cfg.INPUT.FORMAT,
+            "visualizer": TrainingVisualizer(detector_postprocess, metadata),
         }
 
     @property
@@ -211,7 +219,6 @@ class RetinaFace(nn.Module):
             batched_inputs (list): a list that contains input to the model.
             results (List[Instances]): a list of #images elements.
         """
-        from detectron2.utils.visualizer import Visualizer
 
         assert len(batched_inputs) == len(
             results
@@ -222,22 +229,10 @@ class RetinaFace(nn.Module):
         image_index = 0  # only visualize a single image
         img = batched_inputs[image_index]["image"]
         img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format)
-        v_gt = Visualizer(img, None)
-        v_gt = v_gt.overlay_instances(
-            boxes=batched_inputs[image_index]["instances"].gt_boxes,
-            keypoints=batched_inputs[image_index]["instances"].gt_keypoints,
-        )
-        anno_img = v_gt.get_image()
-        processed_results = detector_postprocess(results[image_index], img.shape[0], img.shape[1])
-        predicted_boxes = processed_results.pred_boxes.tensor.detach().cpu().numpy()
-        predicted_keypoints = processed_results.pred_keypoints.detach().cpu().numpy()
 
-        v_pred = Visualizer(img, None)
-        v_pred = v_pred.overlay_instances(
-            boxes=predicted_boxes[0:max_boxes],
-            keypoints=predicted_keypoints[0:max_boxes],
-        )
-        prop_img = v_pred.get_image()
+        anno_img = self.visualizer.draw_instance_groundtruth(img, batched_inputs[image_index]["instances"])
+        prop_img = self.visualizer.draw_instance_predictions(img, results[image_index], max_boxes)
+
         vis_img = np.vstack((anno_img, prop_img))
         vis_img = vis_img.transpose(2, 0, 1)
         vis_name = f"Top: GT bounding boxes; Bottom: {max_boxes} Highest Scoring Results"
