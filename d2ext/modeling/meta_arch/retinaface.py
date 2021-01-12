@@ -27,14 +27,12 @@ from detectron2.utils.events import get_event_storage
 __all__ = ["RetinaFace"]
 
 
-def permute_to_N_HWA_K(tensor, K: int, constant=False):
+def permute_to_N_HWA_K(tensor, K: int):
     """
     Transpose/reshape a tensor from (N, (Ai x K), H, W) to (N, (HxWxAi), K)
     """
     assert tensor.dim() == 4, tensor.shape
     N, _, H, W = tensor.shape
-    if constant:
-        N, H, W = int(N), int(H), int(W)
     tensor = tensor.view(N, -1, K, H, W)
     tensor = tensor.permute(0, 3, 4, 1, 2)
     tensor = tensor.reshape(N, -1, K)  # Size=(N,HWA,K)
@@ -738,20 +736,30 @@ class SSH(nn.Module):
 
 
 @META_ARCH_REGISTRY.register()
-class RetinaFaceDeploy(RetinaFace):
+class _RetinaFace(RetinaFace):
 
     def forward(self, images: Tensor):
         # images = (images - self.pixel_mean) / self.pixel_std
         features = self.backbone(images)
         features = [features[f] for f in self.head_in_features]
-        self.anchors = self.anchor_generator(features)
         pred_logits, pred_anchor_deltas, pred_keypoint_deltas = self.head(features)
         # Transpose the Hi*Wi*A dimension to the middle:
-        pred_logits = cat([permute_to_N_HWA_K(x, self.num_classes, constant=False) for x in pred_logits], dim=1)
-        pred_anchor_deltas = cat([permute_to_N_HWA_K(x, 4, constant=False) for x in pred_anchor_deltas], dim=1)
-        pred_keypoint_deltas = cat(
-            [permute_to_N_HWA_K(x, self.num_landmark * 2, constant=False) for x in pred_keypoint_deltas], dim=1)
+        pred_logits = cat([permute_to_N_HWA_K(x, self.num_classes) for x in pred_logits], dim=1)
+        pred_anchor_deltas = cat([permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas], dim=1)
+        pred_keypoint_deltas = cat([permute_to_N_HWA_K(x, self.num_landmark * 2) for x in pred_keypoint_deltas], dim=1)
         return pred_logits, pred_anchor_deltas, pred_keypoint_deltas
 
-    def write_anchor(self):
-        pass
+    def write_priors(self, images: Tensor, output_priors: str):
+        features = self.backbone(images)
+        features = [features[f] for f in self.head_in_features]
+        anchors = Boxes.cat(self.anchor_generator(features)).tensor.detach().cpu().numpy()
+
+        with open(output_priors, "wb") as f:
+            import struct
+
+            shape = anchors.shape
+            f.write(struct.pack("=i", len(shape)))
+            f.write(struct.pack("={}".format("i" * len(shape)), *shape))
+            data = anchors.reshape([-1])
+            for d in data:
+                f.write(struct.pack("=f", d))

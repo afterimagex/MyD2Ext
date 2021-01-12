@@ -17,12 +17,12 @@ You may want to write your own script with your datasets and other customization
 """
 
 import logging
+import os
 import sys
 from collections import OrderedDict
 
 import detectron2.data.transforms as T
 import detectron2.utils.comm as comm
-import os
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
 from detectron2.data import MetadataCatalog, build_detection_train_loader, build_detection_test_loader
@@ -52,6 +52,7 @@ def build_train_aug(cfg):
         T.RandomBrightness(0.5, 1.5),
         T.RandomSaturation(0.5, 1.5),
         T.RandomFlip(),
+        T.RandomApply(T.RandomExtent([1.0, 2.0], [0.2, 0.2])),
     ]
     if cfg.INPUT.CROP.ENABLED:
         augs.insert(0, T.RandomCrop(cfg.INPUT.CROP.TYPE, cfg.INPUT.CROP.SIZE))

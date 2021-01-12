@@ -1,10 +1,10 @@
-_BASE_: "../Base-RetinaFace.yaml"
+_BASE_: "../../../configs/Base-RetinaFace.yaml"
 MODEL:
   BACKBONE:
     NAME: "build_mnetv2_fpn_backbone"
   WEIGHTS: ""
   RETINANET:
-    NUM_CONVS: 1
+    NUM_CONVS: 4
   RETINAFACE:
     NUM_LANDMARK: 4
     LANDMARK_REG_WEIGHTS: (10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)

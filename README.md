@@ -20,6 +20,7 @@
 - [ ] DBNet
 - [ ] LFFD
 - [ ] YoloV3
+- [ ] SoloV2
 - [ ] SparseR-CNN
 - [ ] Yolact
 

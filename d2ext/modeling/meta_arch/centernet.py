@@ -7,7 +7,7 @@ import torch
 from torch import Tensor, nn
 
 from d2ext.layers.centernet_deconv import DeconvLayer
-from d2ext.layers.centernet_loss import reg_l1_loss, modified_focal_loss, ignore_unlabel_focal_loss, mse_loss
+from d2ext.losses.centernet_loss import reg_l1_loss, modified_focal_loss, ignore_unlabel_focal_loss, mse_loss
 from d2ext.layers.utils import pseudo_nms, topk_score, gather_feature
 from d2ext.modeling.centernet_gt import CenterNetGT
 from d2ext.utils.visualizer import TrainingVisualizer
@@ -399,3 +399,16 @@ class CenternetDeconv(nn.Module):
         x = self.deconv2(x)
         x = self.deconv3(x)
         return x
+
+
+@META_ARCH_REGISTRY.register()
+class CenterNetDeploy(CenterNet):
+
+    def forward(self, images: Tensor):
+        features = self.backbone(images)[self.head_in_features]
+        features = self.upsample(features)
+        pred_dict = self.head(features)
+        pred_hm = nn.functional.max_pool2d(pred_dict['pred_hm'], (3, 3), stride=1, padding=1)
+        pred_wh = pred_dict['pred_wh']
+        pred_reg = pred_dict['pred_reg']
+        return pred_hm, pred_wh, pred_reg

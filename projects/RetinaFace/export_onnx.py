@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import io
 import sys
 
-import onnx
 import torch
+
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup
@@ -14,7 +13,6 @@ sys.path.append('../..')
 sys.path.append('..')
 
 from d2ext.config.defaults import add_retinaface_config
-from onnxsim import simplify
 
 
 def setup(args):
@@ -25,7 +23,7 @@ def setup(args):
     add_retinaface_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
-    cfg.MODEL.META_ARCHITECTURE = 'RetinaFaceDeploy'
+    cfg.MODEL.META_ARCHITECTURE = '_RetinaFace'
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
@@ -56,14 +54,13 @@ def main(args):
     DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
         cfg.MODEL.WEIGHTS, resume=args.resume
     )
-    save_onnx_name = cfg.MODEL.WEIGHTS.replace('.pth', '.onnx')
     model.eval()
     inputs = torch.randn(1, 3, cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST).to(model.device)
     with torch.no_grad():
         torch.onnx.export(
             model,
             inputs,
-            save_onnx_name,
+            cfg.MODEL.WEIGHTS.replace('.pth', '.onnx'),
             export_params=True,
             verbose=False,
             training=False,
@@ -72,6 +69,7 @@ def main(args):
             # output_names=['output'],
             # opset_version=9,
         )
+        model.write_priors(inputs, cfg.MODEL.WEIGHTS.replace('.pth', '.anc'))
 
         # with io.BytesIO() as f:
         #     torch.onnx.export(

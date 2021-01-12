@@ -30,7 +30,7 @@ class TrainingVisualizer:
             pred_classes=groundtruth.gt_classes,
         )
         if groundtruth.has('gt_keypoints'):
-            instance.keypoints = groundtruth.gt_keypoints
+            instance.pred_keypoints = groundtruth.gt_keypoints
         vis_img = visual.draw_instance_predictions(instance)
         return vis_img.get_image()
 
@@ -44,7 +44,7 @@ class TrainingVisualizer:
             pred_classes=processed_results.pred_classes.detach().cpu().int().numpy()[:num_instance],
         )
         if processed_results.has('pred_keypoints'):
-            instance.keypoints = processed_results.pred_keypoints.detach().cpu().numpy()[:num_instance]
+            instance.pred_keypoints = processed_results.pred_keypoints.detach().cpu().numpy()[:num_instance]
 
         vis_img = visual.draw_instance_predictions(instance)
         return vis_img.get_image()
