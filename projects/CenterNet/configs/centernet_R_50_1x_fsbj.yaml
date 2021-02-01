@@ -1,0 +1,31 @@
+_BASE_: "../../../configs/Base-CenterNet.yaml"
+MODEL:
+  BACKBONE:
+    NAME: "build_resnet_backbone"
+  WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  RESNETS:
+    DEPTH: 34
+    RES2_OUT_CHANNELS: 64
+  CENTERNET:
+    NUM_CLASSES: 1
+INPUT:
+  MAX_SIZE_TRAIN: 320
+  MIN_SIZE_TRAIN: (320,)
+  CROP:
+    ENABLED: False
+    SIZE: [0.8, 0.8]
+  MIN_SIZE_TEST: 320
+  MAX_SIZE_TEST: 320
+DATASETS:
+  TRAIN: ("fsbj_1th",)
+  TEST: ("fsbj_1th",)
+SOLVER:
+  IMS_PER_BATCH: 32
+  STEPS: (18000, 21000)
+  MAX_ITER: 24000
+  CHECKPOINT_PERIOD: 2500
+  BASE_LR: 0.001
+TEST:
+  EVAL_PERIOD: 5000
+VIS_PERIOD: 100
+OUTPUT_DIR: '/media/ps/A1/XPC/data/fsbj/output/0'

@@ -1,0 +1,19 @@
+_BASE_: "../../configs/Base-KD-RetinaNet.yaml"
+MODEL:
+  DEVICE: "cuda:1"
+  WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  RESNETS:
+    DEPTH: 50
+DATASETS:
+  TRAIN: ("ccpd_base_train",)
+  TEST: ()
+SOLVER:
+  IMS_PER_BATCH: 12
+  STEPS: (200000, 230000)
+  MAX_ITER: 250000
+  CHECKPOINT_PERIOD: 1000
+KD:
+  ENABLE: True
+  TEACHER: ("../projects/RetinaNetKd/retinanet_teacher_R_50_FPN_1x.yaml",)
+VIS_PERIOD: 100
+OUTPUT_DIR: '/media/ps/A1/XPC/data/CCPD/ccpd_rotate_coco/output_teacher'

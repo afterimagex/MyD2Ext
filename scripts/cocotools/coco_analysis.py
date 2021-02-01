@@ -10,14 +10,14 @@
 #
 # ------------------------------------------------------------
 
-import cv2
 import os
-import numpy as np
 
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 from PIL import Image
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
-import matplotlib.pyplot as plt
 
 # {'luggage_rack': 1, 'skylight': 2, 'mirrors': 3, 'iPlateRect': 4, 'window': 5}
 

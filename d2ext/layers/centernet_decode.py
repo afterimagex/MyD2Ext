@@ -1,12 +1,9 @@
 import torch
-import torch.nn.functional as F
 
 from d2ext.layers.utils import gather_feature
 
 
 class CenterNetDecoder(object):
-
-
 
     def decode(self, fmap, wh, reg=None, cat_spec_wh=False, K=100):
         r"""

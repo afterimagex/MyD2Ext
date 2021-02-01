@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
 
-import io
 import sys
 
-import onnx
 import torch
+
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup
@@ -14,7 +13,6 @@ sys.path.append('../..')
 sys.path.append('..')
 
 from d2ext.config.defaults import add_retinaface_config
-from onnxsim import simplify
 
 
 def setup(args):
@@ -25,29 +23,10 @@ def setup(args):
     add_retinaface_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
-    cfg.MODEL.META_ARCHITECTURE = 'RetinaFaceDeploy'
+    cfg.MODEL.META_ARCHITECTURE = '_RetinaFace'
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
-
-
-def remove_initializer_from_input(model):
-    if model.ir_version < 4:
-        print(
-            'Model with ir_version below 4 requires to include initilizer in graph input'
-        )
-        return
-
-    inputs = model.graph.input
-    name_to_input = {}
-    for input in inputs:
-        name_to_input[input.name] = input
-
-    for initializer in model.graph.initializer:
-        if initializer.name in name_to_input:
-            inputs.remove(name_to_input[initializer.name])
-
-    return model
 
 
 def main(args):
@@ -58,7 +37,8 @@ def main(args):
     )
     save_onnx_name = cfg.MODEL.WEIGHTS.replace('.pth', '.onnx')
     model.eval()
-    inputs = torch.randn(1, 3, cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST).to(model.device)
+    # inputs = torch.randn(1, 3, cfg.INPUT.MIN_SIZE_TEST, cfg.INPUT.MIN_SIZE_TEST).to(model.device)
+    inputs = torch.randn(1, 3, 640, 640).to(model.device)
     with torch.no_grad():
         torch.onnx.export(
             model,
@@ -68,7 +48,8 @@ def main(args):
             verbose=False,
             training=False,
             do_constant_folding=True,
-            input_names=['input'],
+            keep_initializers_as_inputs=True,
+            # input_names=['input'],
             # output_names=['output'],
             # opset_version=9,
         )
@@ -101,7 +82,7 @@ def main(args):
     # assert check, "Simplified ONNX model could not be validated"
     #
     # onnx.save_model(model_simp, save_onnx_name)
-    # print(f"Export onnx model in {save_onnx_name} successfully!")
+    print(f"Export onnx model in {save_onnx_name} successfully!")
 
 
 if __name__ == "__main__":

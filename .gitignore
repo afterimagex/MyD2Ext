@@ -1,5 +1,6 @@
 # Custom
 .vscode
+.DS_Store
 datasets/
 out-of-date/
 work_dirs/

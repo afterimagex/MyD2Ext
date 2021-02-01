@@ -11,6 +11,9 @@
 # ------------------------------------------------------------
 
 
+import sys
+sys.path.append('..')
+
 import cv2
 import os
 import matplotlib.pyplot as plt
@@ -98,4 +101,4 @@ if __name__ == '__main__':
     saveRoot = '/10t/XPC/data/bigPlate/train_1th_2cls.vis'
 
     show_info(cocoGt)
-    # main(imgRoot, cocoGt, saveRoot)
+    main(imgRoot, cocoGt, saveRoot)

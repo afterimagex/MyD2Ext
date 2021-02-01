@@ -236,6 +236,13 @@ class RetinaFace(nn.Module):
         vis_name = f"Top: GT bounding boxes; Bottom: {max_boxes} Highest Scoring Results"
         storage.put_image(vis_name, vis_img)
 
+    def debug(self, batched_inputs, results):
+        import cv2
+        img = batched_inputs[0]["image"]
+        img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format)
+        prop_img = self.visualizer.draw_instance_predictions(img, results[0], 10)
+        cv2.imwrite('debug.jpg', prop_img)
+
     def forward(self, batched_inputs: Tuple[Dict[str, Tensor]]):
         """
         Args:
@@ -255,10 +262,10 @@ class RetinaFace(nn.Module):
                 mapping from a named loss to a tensor storing the loss. Used during training only.
             in inference, the standard output format, described in :doc:`/tutorials/models`.
         """
+
         images = self.preprocess_image(batched_inputs)
         features = self.backbone(images.tensor)
         features = [features[f] for f in self.head_in_features]
-
         anchors = self.anchor_generator(features)
         pred_logits, pred_anchor_deltas, pred_landmark_deltas = self.head(features)
         # Transpose the Hi*Wi*A dimension to the middle:
@@ -274,7 +281,6 @@ class RetinaFace(nn.Module):
             gt_labels, gt_boxes, gt_marks, gt_marks_labels = self.label_anchors(anchors, gt_instances)
             losses = self.losses(anchors, pred_logits, gt_labels, pred_anchor_deltas, gt_boxes, pred_landmark_deltas,
                                  gt_marks, gt_marks_labels)
-
             if self.vis_period > 0:
                 storage = get_event_storage()
                 if storage.iter % self.vis_period == 0:
@@ -286,6 +292,7 @@ class RetinaFace(nn.Module):
             return losses
         else:
             results = self.inference(anchors, pred_logits, pred_anchor_deltas, pred_landmark_deltas, images.image_sizes)
+
             if torch.jit.is_scripting():
                 return results
             processed_results = []
@@ -654,7 +661,6 @@ class RetinaFaceHead(nn.Module):
                 len(set(num_anchors)) == 1
         ), "Using different number of anchors between levels is not currently supported!"
         num_anchors = num_anchors[0]
-        print('cfg.MODEL.RETINANET.NUM_CONVS', cfg.MODEL.RETINANET.NUM_CONVS)
         return {
             "input_shape": input_shape,
             "num_classes": cfg.MODEL.RETINANET.NUM_CLASSES,
@@ -744,22 +750,22 @@ class _RetinaFace(RetinaFace):
         features = [features[f] for f in self.head_in_features]
         pred_logits, pred_anchor_deltas, pred_keypoint_deltas = self.head(features)
         # Transpose the Hi*Wi*A dimension to the middle:
-        pred_logits = cat([permute_to_N_HWA_K(x, self.num_classes) for x in pred_logits], dim=1)
-        pred_anchor_deltas = cat([permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas], dim=1)
-        pred_keypoint_deltas = cat([permute_to_N_HWA_K(x, self.num_landmark * 2) for x in pred_keypoint_deltas], dim=1)
+        pred_logits = [permute_to_N_HWA_K(x, self.num_classes).sigmoid_() for x in pred_logits]
+        pred_anchor_deltas = [permute_to_N_HWA_K(x, 4) for x in pred_anchor_deltas]
+        pred_keypoint_deltas = [permute_to_N_HWA_K(x, self.num_landmark * 2) for x in pred_keypoint_deltas]
         return pred_logits, pred_anchor_deltas, pred_keypoint_deltas
 
     def write_priors(self, images: Tensor, output_priors: str):
         features = self.backbone(images)
         features = [features[f] for f in self.head_in_features]
-        anchors = Boxes.cat(self.anchor_generator(features)).tensor.detach().cpu().numpy()
-
-        with open(output_priors, "wb") as f:
-            import struct
-
-            shape = anchors.shape
-            f.write(struct.pack("=i", len(shape)))
-            f.write(struct.pack("={}".format("i" * len(shape)), *shape))
-            data = anchors.reshape([-1])
-            for d in data:
-                f.write(struct.pack("=f", d))
+        anchors = [x.tensor.detach().cpu().numpy() for x in self.anchor_generator(features)]
+        return anchors
+        # with open(output_priors, "wb") as f:
+        #     import struct
+        #
+        #     shape = anchors.shape
+        #     f.write(struct.pack("=i", len(shape)))
+        #     f.write(struct.pack("={}".format("i" * len(shape)), *shape))
+        #     data = anchors.reshape([-1])
+        #     for d in data:
+        #         f.write(struct.pack("=f", d))

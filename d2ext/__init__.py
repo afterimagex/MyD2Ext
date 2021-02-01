@@ -10,6 +10,6 @@
 #
 # ------------------------------------------------------------
 
-from .modeling import *
+from .modeling import retinaface, retinanet
 
 __all__ = [k for k in globals().keys() if not k.startswith("_")]

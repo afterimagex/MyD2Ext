@@ -1,24 +1,29 @@
 _BASE_: "../../../configs/Base-RetinaFace.yaml"
 MODEL:
   BACKBONE:
-    NAME: "build_mnetv2_fpn_backbone"
-    FREEZE_AT: 0
-  WEIGHTS: "/media/ps/A1/XPC/data/CCPD/ccpd_rotate_coco/output2/model_final.pth"
+    NAME: "build_retinanet_resnet_fpn_backbone"
+  WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  ANCHOR_GENERATOR:
+    SIZES: !!python/object/apply:eval ["[[x, x * 2**(1.0/3), x * 2**(2.0/3) ] for x in [32, 64, 128, 256, 512 ]]"]
+    ASPECT_RATIOS: [[1.0]]
+    OFFSET: 0.5
   RETINANET:
-    NUM_CONVS: 1
     NUM_CLASSES: 1
+    IN_FEATURES: ["p3", "p4", "p5", "p6", "p7"]
   RETINAFACE:
+    USE_SSH: False
     NUM_LANDMARK: 4
     LANDMARK_REG_WEIGHTS: (10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
-  MNET:
-    WIDTH_MULT: 0.25
-    OUT_FEATURES: ["mob3", "mob4", "mob5"]
+  RESNETS:
+    DEPTH: 18
+    RES2_OUT_CHANNELS: 64
+    OUT_FEATURES: ["res3", "res4", "res5"]
   FPN:
-    IN_FEATURES: ["mob3", "mob4", "mob5"]
+    IN_FEATURES: ["res3", "res4", "res5"]
     OUT_CHANNELS: 64
 INPUT:
   MAX_SIZE_TRAIN: 640
-  MIN_SIZE_TRAIN: (320, 512, 640)
+  MIN_SIZE_TRAIN: (512, 640)
   CROP:
     ENABLED: True
     SIZE: [0.6, 0.6]
@@ -28,11 +33,11 @@ DATASETS:
   TRAIN: ("ccpd_base_train", "ccpd_danger_train", "ccpd_dlpr_train", "ccpd_slpr1_train", "ccpd_slpr_train")
   TEST: ("ccpd_base_train",)
 SOLVER:
-  IMS_PER_BATCH: 48
+  IMS_PER_BATCH: 24
   STEPS: (200000, 230000)
   MAX_ITER: 250000
   CHECKPOINT_PERIOD: 1000
 TEST:
   KEYPOINT_OKS_SIGMAS: [1.0, 1.0, 1.0, 1.0]
 VIS_PERIOD: 1000
-OUTPUT_DIR: '/media/ps/A1/XPC/data/CCPD/ccpd_rotate_coco/output3'
+OUTPUT_DIR: '/media/ps/A1/XPC/data/CCPD/ccpd_rotate_coco/output_r18'

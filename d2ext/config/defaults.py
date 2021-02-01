@@ -116,3 +116,10 @@ def add_centernet_config(cfg):
 
     # input config
     cfg.INPUT.FORMAT = "RGB"
+
+
+def add_kd_config(cfg):
+    cfg.KD = CN()
+    cfg.KD.ENABLE = False
+    cfg.KD.TEACHER = []
+    cfg.KD.WEIGHTS = []

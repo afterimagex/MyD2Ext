@@ -1,0 +1,30 @@
+_BASE_: "../../../configs/Base-CenterNet.yaml"
+MODEL:
+  BACKBONE:
+    NAME: "build_resnet_backbone"
+  WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  RESNETS:
+    DEPTH: 50
+  CENTERNET:
+    NUM_CLASSES: 1
+INPUT:
+  MAX_SIZE_TRAIN: 512
+  MIN_SIZE_TRAIN: (320, 480, 512)
+  CROP:
+    ENABLED: False
+    SIZE: [0.8, 0.8]
+  MIN_SIZE_TEST: 512
+  MAX_SIZE_TEST: 512
+DATASETS:
+  TRAIN: ("truck_train",)
+  TEST: ("truck_valid", "truck_train")
+SOLVER:
+  IMS_PER_BATCH: 16
+  STEPS: (18000, 21000)
+  MAX_ITER: 24000
+  CHECKPOINT_PERIOD: 1000
+  BASE_LR: 0.001
+TEST:
+  EVAL_PERIOD: 1000
+VIS_PERIOD: 100
+OUTPUT_DIR: '/media/ps/A1/XPC/data/CCPD/ccpd_rotate_coco/output_centernet_truck'

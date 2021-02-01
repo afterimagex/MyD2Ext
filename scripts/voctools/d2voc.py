@@ -27,6 +27,7 @@ from pascal_voc_writer import Writer
 cudnn.benchmark = True
 
 
+
 class AsyncPredictor:
     """
     A predictor that runs the model asynchronously, possibly on >1 GPUs.

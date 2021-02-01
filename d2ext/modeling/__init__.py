@@ -11,6 +11,6 @@
 # ------------------------------------------------------------
 
 from .backbone import *
-from .meta_arch import *
+from .meta_arch import retinanet, retinaface
 
 __all__ = [k for k in globals().keys() if not k.startswith("_")]
